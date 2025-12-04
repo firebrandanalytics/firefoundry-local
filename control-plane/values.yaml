@@ -1,0 +1,354 @@
+# FireFoundry Control Plane - Local Development Configuration
+# For minikube, k3d, or Docker Desktop Kubernetes
+#
+# Usage:
+#   helm install firefoundry-control firebrandanalytics/firefoundry-control-plane \
+#     -f control-plane/values.yaml \
+#     -f control-plane/secrets.yaml \
+#     --namespace ff-control-plane --create-namespace
+
+global:
+  domain: "firefoundry.local"
+  environment: "local"
+  security:
+    allowInsecureImages: true  # Required for bitnamilegacy PostgreSQL image
+
+# Shared PostgreSQL for all control plane services
+shared-postgresql:
+  enabled: true
+  fullnameOverride: "ff-control-plane-postgresql"
+  image:
+    repository: bitnamilegacy/postgresql
+    tag: "16.3.0"
+  commonLabels:
+    firefoundry.ai/service-type: "database"
+    firefoundry.ai/environment: "control-plane"
+  auth:
+    # Local development passwords - change these for any shared/production use
+    postgresPassword: "localdev-postgres-admin"
+    username: postgres
+    database: postgres
+  primary:
+    initdb:
+      scriptsConfigMap: "ff-control-plane-postgres-init"
+    persistence:
+      enabled: false  # Use emptyDir for local development
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+# Concourse CI/CD Platform (disabled by default for local dev)
+concourse:
+  enabled: false
+  web:
+    postgres:
+      host: ff-control-plane-postgresql
+      port: 5432
+      database: atc
+      sslmode: disable
+      connectTimeout: 5m
+    replicas: 1
+  worker:
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 10Gi
+  postgresql:
+    enabled: false
+  secrets:
+    postgresUser: "concourse"
+    postgresPassword: "localdev-concourse"
+    localAuth:
+      enabled: true
+      localUsers: "admin:localdev-admin"
+
+# Harbor Container Registry (disabled by default for local dev)
+harbor:
+  enabled: false
+  expose:
+    type: ingress
+    tls:
+      enabled: false
+    ingress:
+      hosts:
+        core: harbor.firefoundry.local
+  persistence:
+    enabled: false
+  database:
+    type: external
+    external:
+      host: "ff-control-plane-postgresql"
+      port: "5432"
+      username: "harbor"
+      password: "localdev-harbor"
+      coreDatabase: "registry"
+      notaryServerDatabase: "notary_server"
+      notarySignerDatabase: "notary_signer"
+      sslmode: "disable"
+  postgresql:
+    enabled: false
+  redis:
+    type: internal
+  harborAdminPassword: "localdev-harbor-admin"
+
+# FF Console Management UI
+ff-console:
+  enabled: true
+  replicaCount: 1
+
+  global:
+    serviceType: "console"
+    globalService: true
+    environment: "local"
+    externalAccess: true
+    authentication:
+      exempt: true  # GUI service - exempt from API key authentication
+
+  image:
+    repository: firebranddevet.azurecr.io/ff-console
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: myregistrycreds
+  configMap:
+    enabled: true
+    data:
+      PORT: "3001"
+      NODE_ENV: "development"
+      CORS_ORIGINS: "*"
+      OPENAPI_ENABLED: "true"
+      # Database config - uses local PostgreSQL by default
+      PG_SERVER: "ff-control-plane-postgresql"
+      PG_DATABASE: "firefoundry"
+  secret:
+    enabled: true
+    # Secret values provided via secrets.yaml
+  service:
+    type: ClusterIP
+    http:
+      enabled: true
+      port: 3001
+      targetPort: 3001
+    grpc:
+      enabled: false
+  livenessProbe:
+    httpGet:
+      path: /app/health
+      port: 3001
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /app/health
+      port: 3001
+    initialDelaySeconds: 15
+    periodSeconds: 5
+  ingress:
+    enabled: false
+
+# Kong Gateway - API Gateway for unified service access
+kong:
+  enabled: true
+
+  labels:
+    firefoundry.ai/service-type: "api-gateway"
+    firefoundry.ai/environment: "local"
+
+  migrations:
+    enabled: true
+
+  postgresql:
+    enabled: false
+
+  env:
+    database: postgres
+    pg_host: ff-control-plane-postgresql
+    pg_port: 5432
+    pg_database: kong
+    pg_user: kong
+    pg_password: kong-password-456
+    pg_ssl: "off"
+
+  admin:
+    enabled: true
+    http:
+      enabled: true
+      servicePort: 8001
+    tls:
+      enabled: false
+    type: ClusterIP
+
+  # NodePort for local access via minikube/k3d
+  proxy:
+    enabled: true
+    http:
+      enabled: true
+      servicePort: 80
+      nodePort: 30080
+    tls:
+      enabled: true
+      servicePort: 443
+      nodePort: 30443
+    type: NodePort
+
+  manager:
+    enabled: false
+  portal:
+    enabled: false
+  portalapi:
+    enabled: false
+  ingressController:
+    enabled: false
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "50m"
+    limits:
+      memory: "512Mi"
+      cpu: "200m"
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+# Agent Bundle Controller - Service discovery and routing
+agentBundleController:
+  enabled: true
+  replicas: 1
+  image:
+    repository: firebranddevet.azurecr.io/ff-agent-bundle-controller
+    tag: "1.9.1"
+    pullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: myregistrycreds
+  watchNamespace: "*"
+  labelSelector: ""
+  routePrefix: "/agents"
+  coreServiceRoutePrefix: "/core"
+  logLevel: "debug"
+
+  authentication:
+    enabled: false  # Disable authentication for local development
+    globalEnforce: false
+    guiServicesExempt: true
+    defaultKeyNames: ["X-API-Key"]
+
+  kong:
+    adminUrl: "http://firefoundry-control-firefoundry-control-plane-kong-admin:8001"
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# Flux - GitOps toolkit for Helm chart management
+flux:
+  enabled: true
+  namespace: ff-control-plane
+  createNamespace: false
+
+  sourceController:
+    replicas: 1
+    watchAllNamespaces: true
+    logLevel: info
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+  helmController:
+    replicas: 1
+    watchAllNamespaces: true
+    logLevel: info
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+  helmRepositories:
+    firefoundry:
+      enabled: true
+      url: https://firebrandanalytics.github.io/ff_infra
+      interval: 5m
+    firefoundryCore:
+      enabled: true
+      url: https://firebrandanalytics.github.io/ff_infra
+      interval: 5m
+    agentBundle:
+      enabled: true
+      url: https://firebrandanalytics.github.io/ff_infra
+      interval: 5m
+
+# Helm API - HTTP interface for Helm orchestration
+helmApi:
+  enabled: true
+  replicas: 1
+
+  image:
+    repository: firebranddevet.azurecr.io/helm-api
+    tag: "0.3.1"
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets:
+    - name: myregistrycreds
+
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+  env:
+    NODE_ENV: "production"
+    PORT: "8080"
+    LOG_LEVEL: "debug"
+    SERVICE_NAME: "helm-api"
+    DEFAULT_NAMESPACE: "default"
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  kong:
+    route:
+      path: "/management/helm"
+      stripPath: true
+    authentication:
+      aclGroup: "admin"
+      keyName: "X-API-Key"

@@ -1,0 +1,25 @@
+# Secrets - NEVER commit these
+control-plane/secrets.yaml
+**/secrets.yaml
+*.secret.yaml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Helm
+*.tgz
+charts/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
