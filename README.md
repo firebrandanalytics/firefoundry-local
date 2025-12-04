@@ -21,10 +21,11 @@ This repository provides everything you need to run FireFoundry locally:
 ```bash
 # macOS with Homebrew
 brew install kubectl helm minikube
-
-# Install ff-cli
-npm install -g @firebrandanalytics/ff-cli
 ```
+
+### Get the FireFoundry CLI
+
+FF-CLI: [releases](https://github.com/firebrandanalytics/ff-cli-releases)
 
 ## Quick Start
 
@@ -37,7 +38,7 @@ minikube start --memory=8192 --cpus=4
 
 **k3d:**
 ```bash
-k3d cluster create firefoundry --api-port 6550 -p "30080:30080@server:0" -p "30443:30443@server:0"
+k3d cluster create firefoundry-dev --servers 3 --agents 2 --api-port 127.0.0.1:6445 --port '8080:80@loadbalancer'
 ```
 
 ### 2. Configure Secrets

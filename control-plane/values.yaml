@@ -110,7 +110,7 @@ ff-console:
 
   image:
     repository: firebranddevet.azurecr.io/ff-console
-    tag: "latest"
+    tag: "1.1.1"
     pullPolicy: IfNotPresent
   imagePullSecrets:
     - name: myregistrycreds
@@ -121,9 +121,18 @@ ff-console:
       NODE_ENV: "development"
       CORS_ORIGINS: "*"
       OPENAPI_ENABLED: "true"
-      # Database config - uses local PostgreSQL by default
-      PG_SERVER: "ff-control-plane-postgresql"
-      PG_DATABASE: "firefoundry"
+      # Database config - uses shared Firebrand database
+      PG_SERVER: "firebrand-ai4bi-pg.postgres.database.azure.com"
+      PG_DATABASE: "ff_int_dev"
+      # Azure AD configuration (public identifiers, not secrets)
+      OPENID_CLIENT_ID: "0e08849e-343d-4e0a-97d7-ffee85049c47"
+      OPENID_TENANT_ID: "b1c5a3e4-beda-481c-8195-2f345439ced9"
+      # Application Insights IDs (instrumentation key goes in secrets.yaml)
+      APP_AIS_ID: "9677d25d-73c0-4d04-80bd-edd043a6242b"
+      BROKER_AIS_ID: "9677d25d-73c0-4d04-80bd-edd043a6242b"
+      # Azure Storage account (access key goes in secrets.yaml)
+      WORKING_MEMORY_STORAGE_ACCOUNT: "contextservicestorage"
+      WORKING_MEMORY_STORAGE_CONTAINER: "context-service-files"
   secret:
     enabled: true
     # Secret values provided via secrets.yaml
