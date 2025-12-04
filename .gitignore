@@ -2,6 +2,7 @@
 control-plane/secrets.yaml
 **/secrets.yaml
 *.secret.yaml
+scripts/setup-internal-template.sh
 
 # OS files
 .DS_Store

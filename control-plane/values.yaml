@@ -122,7 +122,7 @@ ff-console:
       CORS_ORIGINS: "*"
       OPENAPI_ENABLED: "true"
       # Database config - uses shared Firebrand database
-      PG_SERVER: "firebrand-ai4bi-pg.postgres.database.azure.com"
+      PG_HOST: "firebrand-ai4bi-pg.postgres.database.azure.com"
       PG_DATABASE: "ff_int_dev"
       # Azure AD configuration (public identifiers, not secrets)
       OPENID_CLIENT_ID: "0e08849e-343d-4e0a-97d7-ffee85049c47"
