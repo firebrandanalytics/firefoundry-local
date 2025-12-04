@@ -261,9 +261,10 @@ if [[ "$DRY_RUN" == "false" ]]; then
     fi
     echo ""
     log_info "Next steps:"
-    echo "  1. Wait for all pods to be Running: kubectl get pods -n $NAMESPACE -w"
-    echo "  2. Install ff-cli: npm install -g @firebrandanalytics/ff-cli"
-    echo "  3. Create an environment: ff-cli environment create my-env --template internal"
+    echo "  1. Monitor with k9s"
+    echo "  2. Install ff-cli from: https://github.com/firebrandanalytics/ff-cli-releases"
+    echo "  3. Download internal template: curl -fsSL https://raw.githubusercontent.com/firebrandanalytics/firefoundry-local/main/scripts/setup-ff-template.sh | bash"
+    echo "  4. Create an environment: ff-cli environment create --template internal --name my-env"
 else
     log_info "Dry run complete - review output above"
 fi
