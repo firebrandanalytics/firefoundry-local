@@ -31,8 +31,6 @@ shared-postgresql:
   primary:
     initdb:
       scriptsConfigMap: "ff-control-plane-postgres-init"
-    persistence:
-      enabled: false  # Use emptyDir for local development
     resources:
       requests:
         memory: "512Mi"
